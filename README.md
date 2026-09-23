@@ -12,9 +12,21 @@ Reusable, MIT-licensed Claude Code skill for syncing status-tracked Markdown fil
 - Provides offline and online read-only diagnostics.
 - Installs additive, idempotent Claude Code hooks.
 
-## Install in a project
+## Plugin installation (recommended)
 
-Clone the skill, then copy it into the consuming project:
+Install through Claude Code's plugin marketplace:
+
+```text
+/plugin marketplace add soumabali/notion-project-sync
+/plugin install notion-project-sync
+```
+
+Claude Code then discovers the `notion-project-sync` skill automatically. Run the
+engine from the installed plugin only when configuring or operating sync commands.
+
+## Manual installation (alternative)
+
+Clone the repository, then copy it into the consuming project:
 
 ```bash
 git clone https://github.com/soumabali/notion-project-sync.git

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "notion-project-sync",
+  "description": "Claude Code plugin for syncing status-tracked project markdown with Notion.",
+  "owner": {
+    "name": "soumabali",
+    "url": "https://github.com/soumabali"
+  },
+  "plugins": [
+    {
+      "name": "notion-project-sync",
+      "source": "./",
+      "description": "Sync status-tracked project markdown with a Notion database via configurable REST calls, native parent/sub-item relations, and full status lifecycle.",
+      "version": "1.0.0",
+      "category": "productivity",
+      "tags": ["notion", "project-management", "sync"]
+    }
+  ]
+}
