@@ -25,33 +25,38 @@ file excluded by `.gitignore`, a process environment, or a secret manager.
 
 ## Setup
 
-From the consuming project root:
+From the consuming project root, use the plugin-resolved engine path:
 
 ```bash
-node skills/notion-project-sync/engine.mjs init
-node skills/notion-project-sync/engine.mjs doctor --offline
+node "${CLAUDE_PLUGIN_ROOT}/engine.mjs" init
+node "${CLAUDE_PLUGIN_ROOT}/engine.mjs" doctor --offline
 ```
 
-`init` creates `.notion-sync.json` only when it does not already exist. It
-refuses to overwrite an existing file. Add `--install-hooks` only when the
-project should install additive, idempotent SessionStart and PostToolUse hooks
-in `.claude/settings.json`.
+`${CLAUDE_PLUGIN_ROOT}` is expanded by Claude Code when it runs this skill. Do
+not replace it with a guessed cache or `skills/` path. For a manual clone,
+replace it with the actual path to the cloned `engine.mjs` (for example,
+`node .claude/skills/notion-project-sync/engine.mjs init`).
 
-Set the credentials in the local environment, then run the online diagnostics:
+`init` creates `.notion-sync.json` in the consuming project only when it does
+not already exist. It refuses to overwrite an existing file. Add
+`--install-hooks` only when the project should install additive, idempotent
+SessionStart and PostToolUse hooks in `.claude/settings.json`.
+
+Set credentials in the local environment, then run online diagnostics:
 
 ```bash
-node skills/notion-project-sync/engine.mjs doctor
+node "${CLAUDE_PLUGIN_ROOT}/engine.mjs" doctor
 ```
 
 ## Configuration
 
 `.notion-sync.json` contains project metadata and API/property configuration,
-never secret values. The schema is `config.schema.json`; a reusable example is
-`.notion-sync.example.json`.
+never secret values. The schema is `config.schema.json`; `init` writes the correct relative `$schema`
+path automatically. A reusable example is `.notion-sync.example.json`.
 
 ```json
 {
-  "$schema": "./skills/notion-project-sync/config.schema.json",
+  "$schema": "path/to/notion-project-sync/config.schema.json",
   "version": 1,
   "projectSlug": "example-project",
   "trackedPrefixes": ["03-phases/", "04-tasks/", "05-progress/"],
@@ -110,8 +115,12 @@ and markdown bodies are not written to failure state or diagnostics.
 ## CLI
 
 ```bash
-node skills/notion-project-sync/engine.mjs <command> [options]
+node "${CLAUDE_PLUGIN_ROOT}/engine.mjs" <command> [options]
 ```
+
+`${CLAUDE_PLUGIN_ROOT}` expands to the plugin's real on-disk directory when
+Claude Code runs this skill. For a manual (non-plugin) install, use the actual
+path to the cloned `engine.mjs` instead.
 
 - `init [--install-hooks]` — create `.notion-sync.json` from defaults.
   Create-only: refuses to overwrite an existing config. `--install-hooks`
@@ -191,7 +200,8 @@ not create or repair databases, properties, or status options.
 
 ## Open-source use
 
-The skill is MIT licensed. Copy `skills/notion-project-sync/` into another
-project, retain its license and schema, create a project-specific
-`.notion-sync.json`, and review tracked paths and property names before enabling
-hooks. Keep project credentials and sync state outside committed files.
+The skill is MIT licensed. For manual use, copy this repository (or the
+installed skill directory) into another project, retain its license and schema,
+create a project-specific `.notion-sync.json`, and review tracked paths and
+property names before enabling hooks. Keep project credentials and sync state
+outside committed files.

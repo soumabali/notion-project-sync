@@ -18,44 +18,58 @@ Install through Claude Code's plugin marketplace:
 
 ```text
 /plugin marketplace add soumabali/notion-project-sync
-/plugin install notion-project-sync
+/plugin install notion-project-sync@notion-project-sync
 ```
 
-Claude Code then discovers the `notion-project-sync` skill automatically. Run the
-engine from the installed plugin only when configuring or operating sync commands.
+Claude Code discovers the `notion-project-sync` skill automatically. From here,
+don't run `engine.mjs` by hand — a plugin's on-disk install path isn't something
+you can rely on or type yourself. Instead, ask Claude Code directly, for example:
+
+- "Run notion-sync doctor"
+- "Initialize notion-sync and install its hooks"
+- "Push this file to Notion"
+
+The skill's instructions resolve the real engine location for you and run the
+matching command. This is the only supported way to run the CLI under a plugin
+install.
 
 ## Manual installation (alternative)
 
-Clone the repository, then copy it into the consuming project:
+Clone the repository anywhere, then copy it into the consuming project. The
+clone root contains `engine.mjs`; it has no `skills/` prefix:
 
 ```bash
-git clone https://github.com/soumabali/notion-project-sync.git
-cp -R notion-project-sync /path/to/your-project/skills/notion-project-sync
+git clone https://github.com/soumabali/notion-project-sync.git /tmp/notion-project-sync
 cd /path/to/your-project
-node skills/notion-project-sync/engine.mjs init
-node skills/notion-project-sync/engine.mjs doctor --offline
-```
-
-`init` creates `.notion-sync.json` only when absent. It refuses to overwrite an existing configuration.
-
-Copy `.notion-sync.example.json` when you need a starting point with editable defaults. The `examples/` directory contains a complete example and Claude Code hook settings.
-
-### Claude Code skill installation
-
-Claude Code loads skills from a project's `.claude/skills/` directory or a user-level `~/.claude/skills/` directory. To install this as a discoverable skill:
-
-```bash
 mkdir -p .claude/skills
-cp -R skills/notion-project-sync .claude/skills/notion-project-sync
+cp -R /tmp/notion-project-sync .claude/skills/notion-project-sync
+node .claude/skills/notion-project-sync/engine.mjs init
+node .claude/skills/notion-project-sync/engine.mjs doctor --offline
 ```
 
-Keep the executable engine path in your project configuration and hooks. If the skill is installed under `.claude/skills/`, use:
+Run `init` from the consuming project root. It creates that project's
+`.notion-sync.json` only when absent and refuses to overwrite existing config.
+Replace `/tmp/notion-project-sync` with any clone location. The `examples/`
+directory contains a complete example and Claude Code hook settings.
+
+For a starting config instead of defaults, copy the example before running
+commands:
 
 ```bash
-node .claude/skills/notion-project-sync/engine.mjs init
+cp .claude/skills/notion-project-sync/.notion-sync.example.json .notion-sync.json
 ```
 
-The skill can also remain under `skills/notion-project-sync/`; Claude Code documentation and hooks may refer to that path directly.
+Do not run `init` after that copy; `init` is create-only and will refuse to
+overwrite it.
+
+Every command below assumes the shell is in the consuming project root and uses
+the copied engine path shown above. If you keep the clone elsewhere, replace
+`.claude/skills/notion-project-sync/engine.mjs` with its actual path.
+
+`.claude/skills/` is what Claude Code scans for project-level skills, and
+`~/.claude/skills/` for user-level ones — either works the same way; the engine
+locates its own files wherever it's copied, so just point `node` at the actual
+`engine.mjs` you copied.
 
 ## Credentials
 
@@ -66,14 +80,14 @@ Never commit token values, database IDs, passwords, request bodies, response bod
 ```bash
 export NOTION_TOKEN='your-integration-token'
 export NOTION_DATABASE_ID='your-database-id'
-node skills/notion-project-sync/engine.mjs doctor
+node .claude/skills/notion-project-sync/engine.mjs doctor
 ```
 
 Share the target Notion database with the integration before syncing.
 
 ## Configuration
 
-`.notion-sync.json` is project configuration, not a credential file. Use `config.schema.json` for editor validation.
+`.notion-sync.json` is project configuration, not a credential file. `init` fills in its `$schema` field with the correct relative path to `config.schema.json` automatically — you never need to compute or hand-edit that path.
 
 Required concepts:
 
@@ -106,10 +120,10 @@ The relation property should be created in Notion so Notion exposes its paired s
 
 ## Commands
 
-Run from consuming project root:
+Run from wherever `engine.mjs` lives (see [Manual installation](#manual-installation-alternative); plugin installs run these through Claude Code instead):
 
 ```bash
-node skills/notion-project-sync/engine.mjs <command> [options]
+node .claude/skills/notion-project-sync/engine.mjs <command> [options]
 ```
 
 | Command | Behavior |
@@ -126,13 +140,15 @@ node skills/notion-project-sync/engine.mjs <command> [options]
 
 ## Claude Code hooks
 
-Install hooks explicitly:
+Under a plugin install, ask Claude Code to run `init --install-hooks` for you —
+it resolves the real engine path itself. Under a manual install, run it directly
+from wherever `engine.mjs` lives:
 
 ```bash
-node skills/notion-project-sync/engine.mjs init --install-hooks
+node .claude/skills/notion-project-sync/engine.mjs init --install-hooks
 ```
 
-This adds `SessionStart` pull and `PostToolUse` push-if-tracked commands without deleting existing settings. Re-running is idempotent. Malformed or structurally unsafe settings are rejected without rewriting.
+This adds `SessionStart` pull and `PostToolUse` push-if-tracked commands, pointed at wherever you ran it from, without deleting existing settings. Re-running is idempotent. Malformed or structurally unsafe settings are rejected without rewriting.
 
 Hooks call the Notion REST API. They cannot invoke MCP interactively; MCP is not a hook transport. Interactive MCP work remains separate and is not required by this skill.
 
@@ -150,7 +166,7 @@ Hook pushes are fail-open: a failed push reports an error but does not undo or b
 
 ## Testing
 
-No runtime dependency installation is required:
+No runtime dependency installation is required. Run from the repository root:
 
 ```bash
 node --check engine.mjs

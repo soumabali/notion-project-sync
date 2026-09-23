@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f .env ] && set -a && . ./.env && set +a; node skills/notion-project-sync/engine.mjs pull",
+            "command": "[ -f .env ] && set -a && . ./.env && set +a; node .claude/skills/notion-project-sync/engine.mjs pull",
             "timeout": 30
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f .env ] && set -a && . ./.env && set +a; node skills/notion-project-sync/engine.mjs push-if-tracked",
+            "command": "[ -f .env ] && set -a && . ./.env && set +a; node .claude/skills/notion-project-sync/engine.mjs push-if-tracked",
             "timeout": 15
           }
         ]
