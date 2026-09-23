@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "notion-project-sync config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "projectSlug", "trackedPrefixes", "statusMapping"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "projectSlug": { "type": "string", "minLength": 1 },
+    "trackedPrefixes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "statePath": { "type": "string" },
+    "syncBody": { "type": "boolean" },
+    "notion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "apiBaseUrl": { "type": "string" },
+        "apiVersion": { "type": "string" },
+        "tokenEnv": { "type": "string" },
+        "databaseIdEnv": { "type": "string" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" },
+            "externalId": { "type": "string" },
+            "parentId": { "type": "string" },
+            "type": { "type": "string" },
+            "status": { "type": "string" },
+            "phase": { "type": "string" },
+            "owner": { "type": "string" },
+            "securitySensitive": { "type": "string" },
+            "changelogEntry": { "type": "string" },
+            "path": { "type": "string" },
+            "localUpdated": { "type": "string" }
+          }
+        }
+      }
+    },
+    "statusMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backlog", "todo", "in-progress", "testing", "blocked", "in-review", "done"],
+      "properties": {
+        "backlog": { "type": "string" },
+        "todo": { "type": "string" },
+        "in-progress": { "type": "string" },
+        "testing": { "type": "string" },
+        "blocked": { "type": "string" },
+        "in-review": { "type": "string" },
+        "done": { "type": "string" }
+      }
+    },
+    "artifactTypes": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxAttempts": { "type": "integer", "minimum": 1 },
+        "timeoutMs": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f .env ] && set -a && . ./.env && set +a; node skills/notion-project-sync/engine.mjs pull",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f .env ] && set -a && . ./.env && set +a; node skills/notion-project-sync/engine.mjs push-if-tracked",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

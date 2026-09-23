@@ -1,0 +1,43 @@
+{
+  "$schema": "../config.schema.json",
+  "version": 1,
+  "projectSlug": "example-project",
+  "trackedPrefixes": ["03-phases/", "04-tasks/", "05-progress/"],
+  "statePath": "tooling/.notion-sync-state.json",
+  "syncBody": true,
+  "notion": {
+    "apiBaseUrl": "https://api.notion.com/v1",
+    "apiVersion": "2022-06-28",
+    "tokenEnv": "NOTION_TOKEN",
+    "databaseIdEnv": "NOTION_DATABASE_ID",
+    "properties": {
+      "name": "Name",
+      "externalId": "External ID",
+      "parentId": "Parent item",
+      "type": "Type",
+      "status": "Status",
+      "phase": "Phase",
+      "owner": "Owner",
+      "securitySensitive": "Security Sensitive",
+      "changelogEntry": "Changelog Entry",
+      "path": "Path",
+      "localUpdated": "Local Updated"
+    }
+  },
+  "statusMapping": {
+    "backlog": "Backlog",
+    "todo": "Todo",
+    "in-progress": "In progress",
+    "testing": "Testing",
+    "blocked": "Blocked",
+    "in-review": "In Review",
+    "done": "Done"
+  },
+  "artifactTypes": {
+    "03-phases/": "Phase",
+    "04-tasks/hotfix/": "Hotfix",
+    "04-tasks/": "Task",
+    "05-progress/": "Progress"
+  },
+  "retry": { "maxAttempts": 3, "timeoutMs": 10000 }
+}
