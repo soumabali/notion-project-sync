@@ -1,11 +1,12 @@
 {
+  "_comment": "Illustrative only. `init --install-hooks` computes the real engine path (relative to your project root, wherever engine.mjs actually lives — plugin cache or manual clone) and writes it for you. Don't hand-copy the path below into another project.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f .env ] && set -a && . ./.env && set +a; node .claude/skills/notion-project-sync/engine.mjs pull",
+            "command": "[ -f .env ] && set -a && . ./.env && set +a; node <relative-path-to-engine.mjs> pull",
             "timeout": 30
           }
         ]
@@ -17,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f .env ] && set -a && . ./.env && set +a; node .claude/skills/notion-project-sync/engine.mjs push-if-tracked",
+            "command": "[ -f .env ] && set -a && . ./.env && set +a; node <relative-path-to-engine.mjs> push-if-tracked",
             "timeout": 15
           }
         ]

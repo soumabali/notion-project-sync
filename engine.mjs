@@ -376,7 +376,8 @@ export function createNotionSyncEngine(root = process.cwd(), overrides = {}) {
   const notionBase = config.notion.apiBaseUrl.replace(/\/$/, '');
   const statusToNotion = (status) => config.statusMapping[status];
   const notionToStatus = Object.fromEntries(Object.entries(config.statusMapping).map(([key, value]) => [value, key]));
-  const externalId = (fm) => `${config.projectSlug}:${fm.id}`;
+  const externalId = (fm) => `${config.projectSlug}:${fm.phase}:${fm.id}`;
+  const legacyExternalId = (fm) => `${config.projectSlug}:${fm.id}`;
   const artifactType = (relPath) => {
     const match = Object.entries(config.artifactTypes)
       .sort(([a], [b]) => b.length - a.length)
@@ -445,9 +446,10 @@ export function createNotionSyncEngine(root = process.cwd(), overrides = {}) {
 
   async function resolveParentPageId(fm, token, dbId) {
     if (!fm.parent_id) return null;
-    const parentMatches = await queryByExternalId({ id: fm.parent_id }, token, dbId);
-    if (parentMatches.length > 1) throw new Error(`multiple Notion pages match parent External ID ${externalId({ id: fm.parent_id })} — refusing to sync child`);
-    if (parentMatches.length === 0) throw new Error(`parent page not found for External ID ${externalId({ id: fm.parent_id })} — refusing to sync child`);
+    const parentReference = { phase: fm.phase, id: fm.parent_id };
+    const { matches: parentMatches } = await findExternalIdMatches(parentReference, token, dbId);
+    if (parentMatches.length > 1) throw new Error(`multiple Notion pages match parent External ID ${externalId(parentReference)} — refusing to sync child`);
+    if (parentMatches.length === 0) throw new Error(`parent page not found for External ID ${externalId(parentReference)} — refusing to sync child`);
     return parentMatches[0].id;
   }
 
@@ -478,11 +480,20 @@ export function createNotionSyncEngine(root = process.cwd(), overrides = {}) {
     return res.json();
   }
 
-  async function queryByExternalId(fm, token, dbId) {
+  // Preserve pages created before phase-qualified External IDs were introduced.
+  async function findExternalIdMatches(fm, token, dbId) {
+    const matches = await queryByExternalId(fm, token, dbId);
+    if (matches.length > 0) return { matches, isLegacy: false };
+    const legacyMatches = await queryByExternalId(fm, token, dbId, true);
+    return { matches: legacyMatches, isLegacy: legacyMatches.length > 0 };
+  }
+
+  async function queryByExternalId(fm, token, dbId, useLegacy = false) {
     const results = [];
     let cursor;
     do {
-      const body = { filter: { property: property.externalId, rich_text: { equals: externalId(fm) } } };
+      const value = useLegacy ? legacyExternalId(fm) : externalId(fm);
+      const body = { filter: { property: property.externalId, rich_text: { equals: value } } };
       if (cursor) body.start_cursor = cursor;
       const res = await notionFetch(
         `${notionBase}/databases/${dbId}/query`,
@@ -514,7 +525,7 @@ export function createNotionSyncEngine(root = process.cwd(), overrides = {}) {
           result = { action: 'updated', pageId: body.id };
         } catch (error) {
           if (!error.message.includes('(status 404)')) throw error;
-          const matches = await queryByExternalId(fm, token, dbId);
+          const { matches } = await findExternalIdMatches(fm, token, dbId);
           if (matches.length > 1) throw new Error(`multiple Notion pages match External ID ${externalId(fm)} — refusing to create a duplicate`);
           if (matches.length !== 1) throw new Error(`stale cached Notion page ID and no External ID match: ${externalId(fm)}`);
           const res = await notionFetch(`${notionBase}/pages/${matches[0].id}`, { method: 'PATCH', body: JSON.stringify({ properties }) }, token);
@@ -523,7 +534,7 @@ export function createNotionSyncEngine(root = process.cwd(), overrides = {}) {
           result = { action: 'updated', pageId: body.id };
         }
       } else {
-        const matches = await queryByExternalId(fm, token, dbId);
+        const { matches } = await findExternalIdMatches(fm, token, dbId);
         if (matches.length > 1) throw new Error(`multiple Notion pages match External ID ${externalId(fm)} — refusing to create a duplicate`);
         if (matches.length === 1) {
           const res = await notionFetch(`${notionBase}/pages/${matches[0].id}`, { method: 'PATCH', body: JSON.stringify({ properties }) }, token);
@@ -668,6 +679,11 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     const report = await doctor(engine, argv.includes('--offline'), log);
     if (!report.ok) setExitCode(1);
   } else if (cmd === 'push') {
+    if (!arg) {
+      error('push requires a file path');
+      setExitCode(1);
+      return;
+    }
     const result = await engine.push(arg);
     log(`push ${result.action} ${result.pageId}`);
   } else if (cmd === 'push-if-tracked') {

@@ -74,11 +74,11 @@ test('custom config changes External ID and property names', async () => {
   const { root, file } = project({
     notion: { properties: { name: 'Title', externalId: 'Key', status: 'State', parentId: 'Parent item' } },
   });
-  let queryBody;
+  const queryBodies = [];
   let createBody;
   mock.method(globalThis, 'fetch', async (url, options) => {
     if (String(url).includes('/databases/')) {
-      queryBody = JSON.parse(options.body);
+      queryBodies.push(JSON.parse(options.body));
       return new Response(JSON.stringify({ results: [] }), { status: 200 });
     }
     createBody = JSON.parse(options.body);
@@ -87,10 +87,10 @@ test('custom config changes External ID and property names', async () => {
 
   const result = await createNotionSyncEngine(root).push(file);
   assert.equal(result.action, 'created');
-  assert.equal(queryBody.filter.property, 'Key');
-  assert.equal(queryBody.filter.rich_text.equals, 'custom-project:task-custom');
+  assert.equal(queryBodies[0].filter.property, 'Key');
+  assert.equal(queryBodies[0].filter.rich_text.equals, 'custom-project:phase-custom:task-custom');
   assert.equal(createBody.properties.Title.title[0].text.content, 'Custom task');
-  assert.equal(createBody.properties.Key.rich_text[0].text.content, 'custom-project:task-custom');
+  assert.equal(createBody.properties.Key.rich_text[0].text.content, 'custom-project:phase-custom:task-custom');
   assert.equal(createBody.properties.State.status.name, 'Testing');
 });
 
@@ -132,6 +132,13 @@ test('syncBody false sends no block requests', async () => {
   await createNotionSyncEngine(root).push(file);
   assert.equal(calls.some(({ url }) => url.includes('/blocks/')), false);
   assert.equal(JSON.parse(readFileSync(path.join(root, 'state.json'), 'utf8'))['task-custom'].last_synced_status, 'testing');
+});
+
+test('CLI push without a file path fails with a clear error, not a stack trace', async () => {
+  const { root } = project();
+  const result = await captureMain(['push'], root);
+  assert.equal(result.exitCode, 1);
+  assert.match(result.errors.join('\n'), /push requires a file path/);
 });
 
 test('init creates config only when absent and refuses overwrite', async () => {
@@ -391,7 +398,7 @@ test('push resolves parent External ID and sends a native relation', async () =>
     calls.push({ url: String(url), body: options.body && JSON.parse(options.body) });
     if (String(url).includes('/databases/') && String(url).endsWith('/query')) {
       const external = calls.at(-1).body.filter.rich_text.equals;
-      if (external === 'custom-project:parent-task') return new Response(JSON.stringify({ results: [{ id: 'parent-page' }] }), { status: 200 });
+      if (external === 'custom-project:phase-custom:parent-task') return new Response(JSON.stringify({ results: [{ id: 'parent-page' }] }), { status: 200 });
       return new Response(JSON.stringify({ results: [] }), { status: 200 });
     }
     return new Response(JSON.stringify({ id: 'child-page' }), { status: 200 });
@@ -413,8 +420,63 @@ test('push refuses child creation when parent is missing', async () => {
     return new Response(JSON.stringify({ results: [] }), { status: 200 });
   });
 
-  await assert.rejects(() => createNotionSyncEngine(root).push(file), /parent page not found.*custom-project:missing-parent/);
+  await assert.rejects(() => createNotionSyncEngine(root).push(file), /parent page not found.*custom-project:phase-custom:missing-parent/);
   assert.equal(calls.some(({ url }) => url.endsWith('/pages')), false);
+});
+
+test('push qualifies External ID with phase', async () => {
+  const { root, file } = project();
+  const queryExternalIds = [];
+  mock.method(globalThis, 'fetch', async (url, options) => {
+    if (String(url).includes('/databases/')) {
+      queryExternalIds.push(JSON.parse(options.body).filter.rich_text.equals);
+      return new Response(JSON.stringify({ results: [] }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ id: 'phase-page' }), { status: 200 });
+  });
+
+  await createNotionSyncEngine(root).push(file);
+  assert.equal(queryExternalIds[0], 'custom-project:phase-custom:task-custom');
+});
+
+test('push upgrades one legacy External ID match without creating duplicate', async () => {
+  const { root, file } = project();
+  const queries = [];
+  let patched;
+  mock.method(globalThis, 'fetch', async (url, options) => {
+    if (String(url).includes('/databases/')) {
+      const external = JSON.parse(options.body).filter.rich_text.equals;
+      queries.push(external);
+      const results = external === 'custom-project:task-custom' ? [{ id: 'legacy-page' }] : [];
+      return new Response(JSON.stringify({ results }), { status: 200 });
+    }
+    if (String(url).endsWith('/pages/legacy-page')) {
+      patched = JSON.parse(options.body);
+      return new Response(JSON.stringify({ id: 'legacy-page' }), { status: 200 });
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  });
+
+  const result = await createNotionSyncEngine(root).push(file);
+  assert.equal(result.action, 'updated');
+  assert.deepEqual(queries, ['custom-project:phase-custom:task-custom', 'custom-project:task-custom']);
+  assert.equal(patched.properties['External ID'].rich_text[0].text.content, 'custom-project:phase-custom:task-custom');
+});
+
+test('parent lookup qualifies parent External ID with child phase', async () => {
+  const { root, file } = project();
+  writeFileSync(file, FRONT_MATTER.replace('id: task-custom', 'id: child-task').replace('owner: claude', 'owner: claude\nparent_id: parent-task'), 'utf8');
+  const parentExternalIds = [];
+  mock.method(globalThis, 'fetch', async (url, options) => {
+    if (String(url).includes('/databases/')) {
+      parentExternalIds.push(JSON.parse(options.body).filter.rich_text.equals);
+      return new Response(JSON.stringify({ results: [{ id: 'parent-page' }] }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ id: 'child-page' }), { status: 200 });
+  });
+
+  await createNotionSyncEngine(root).push(file);
+  assert.equal(parentExternalIds[0], 'custom-project:phase-custom:parent-task');
 });
 
 test('all canonical statuses push to mapped Notion statuses', async () => {

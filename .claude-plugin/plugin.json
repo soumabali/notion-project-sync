@@ -1,7 +1,7 @@
 {
   "name": "notion-project-sync",
   "description": "Sync status-tracked project markdown with a Notion database via configurable REST calls, native parent/sub-item relations, and full status lifecycle.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "soumabali",
     "url": "https://github.com/soumabali"
